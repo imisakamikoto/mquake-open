@@ -1,0 +1,34 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Typhoon 48h Warning Line (CN)",
+        "hours": 48,
+        "source": "Commonly used CN typhoon 48h line"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            132,
+            34
+          ],
+          [
+            132,
+            15
+          ],
+          [
+            120,
+            0
+          ],
+          [
+            105,
+            0
+          ]
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Typhoon 24h Warning Line (CN)",
+        "hours": 24,
+        "source": "Commonly used CN typhoon 24h line"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            127,
+            34
+          ],
+          [
+            127,
+            22
+          ],
+          [
+            119,
+            18
+          ],
+          [
+            119,
+            11
+          ],
+          [
+            113,
+            4.5
+          ],
+          [
+            105,
+            0
+          ]
+        ]
+      }
+    }
+  ]
+}
