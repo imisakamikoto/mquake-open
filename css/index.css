@@ -1,0 +1,874 @@
+/* CEIV */
+
+@font-face {
+    font-family: OPPOSans-H;
+    src: url("OPPOSans3.0cn-Bold.woff2") format("woff2");
+}
+
+@font-face {
+    font-family: OPPOSans-B;
+    src: url("OPPOSans3.0cn-Medium.woff2") format("woff2");
+}
+
+::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    background-color: transparent;
+}
+
+* {
+    font-family: OPPOSans-B, sans-serif;
+    padding: 0;
+    margin: 0;
+    /* box-sizing:border-box; */
+}
+
+html,
+body {
+    font-family: OPPOSans-B, sans-serif;
+    height: 100%;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+body {
+    position: relative;
+    font-family: OPPOSans-B, sans-serif;
+    background-color: #242424;
+    overflow: hidden;
+}
+
+#map {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 350px; /* 新增，避免被#list遮挡 */
+    width: auto;
+    height: 100vh;
+    z-index: 1;
+    box-shadow: none;
+    border-radius: 0;
+    background-color: #222327;
+}
+
+.mapboxgl-popup {
+    max-width: 200px;
+    color: black;
+    font-size: 18px;
+}
+
+.mapboxgl-ctrl-top-right {
+    z-index: 99999;
+}
+
+.mapboxgl-popup-content {
+    text-align: left;
+}
+
+.mapbox-improve-map {
+    display: none;
+}
+
+.mapboxgl-ctrl-attrib {
+    display: none;
+}
+
+.marker {
+    background-image: url('img (1)/Source-Copy.png');
+    background-size: cover;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.amap-marker {
+    /* 移除 background-image */
+    background-size: cover;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: block; /* 修改为 block，移除 flex 布局 */
+    overflow: hidden;
+    position: relative; /* 新增，确保 img 绝对定位参照 */
+}
+
+/* 新增：让.amap-marker内的img绝对定位填充整个div */
+.amap-marker img {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.amap-info-content {
+    font-size: 18px;
+    color: black;
+}
+
+/* 震中图标闪烁动画 */
+@keyframes epicenter-blink {
+    0%, 90% {
+        opacity: 1;
+    }
+    95% {
+        opacity: 0.2;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+.epicenter-blink {
+    animation: epicenter-blink 3s infinite;
+}
+
+#list {
+    position: fixed;
+    right: 0;
+    top: 0;
+    width: 350px;
+    height: 100vh;
+    z-index: 99991;
+    border-radius: 0;
+    box-shadow: none;
+    opacity: 1;
+    overflow: scroll;
+    background-color: #212121;
+}
+
+body:-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    background-color: transparent;
+}
+
+#status {
+    position: absolute;
+    top: 40px;
+    left: 40px;
+    background-color: #fff;
+    box-shadow: 0px 0px 10px 6px rgba(0, 0, 0, 0.1);
+    width: 360px;
+    height: 31px;
+    font-size: 20px;
+    line-height: 31px;
+    text-align: center;
+    border-radius: 10px;
+    opacity: 1;
+    z-index: 1000000; /* 提高优先级，确保信息栏始终可见 */
+}
+
+#eewBar {
+    position: absolute;
+    top: 81px;
+    left: 40px;
+    box-shadow: 0px 0px 10px 6px rgba(0, 0, 0, 0.1);
+    width: 360px;
+    height: 107px;
+    border-radius: 10px;
+    background-color: #fff;
+    opacity: 0;
+    z-index: 999998; /* 修复：不要用负值，保证信息框可见 */
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+#eewBar_shindo {
+    position: absolute;
+    font-family: OPPOSans-H;
+    text-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+    top: 0px;
+    left: 0px;
+    width: 100px;
+    height: 107px;
+    border-top-left-radius: 10px;
+    border-bottom-left-radius: 10px;
+    background-color: #000;
+    z-index: 999;
+    /* 修改为flex居中 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 75px;
+}
+
+#eewBar_shindo span {
+    display: block;
+    width: 100%;
+    text-align: center;
+    line-height: 1.1;
+    color: white;
+    /* 可选：移除margin/padding，确保居中 */
+    margin: 0;
+    padding: 0;
+}
+
+#eewBar_epicenter {
+    position: absolute;
+    top: 5px;
+    left: 105px;
+    right: 10px;
+    height: 32px;
+    min-width: 0;
+    max-width: 230px;
+    width: auto;
+    display: flex;
+    align-items: flex-start;
+    /* 关键：不裁剪内容，不省略 */
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: unset;
+    line-height: 1.1;
+    word-break: keep-all;
+    margin-bottom: 4px;
+    font-family: OPPOSans-H, OPPOSans-B, 'Arial Black', Arial, sans-serif;
+    letter-spacing: 0.5px;
+    font-size: 26px; /* 最大字体 */
+    transition: font-size 0.1s;
+    /* 让内容撑满容器 */
+    justify-content: flex-start;
+}
+
+@media (max-width: 500px) {
+    #eewBar_epicenter {
+        font-size: clamp(10px, 6vw, 18px);
+        max-width: 120px;
+    }
+}
+
+#eewBar_time {
+    position: absolute;
+    top: 39px;
+    left: 105px;
+    font-size: 20px;
+}
+
+#eewBar_magnitude {
+    position: absolute;
+    top: 61px;
+    left: 105px;
+    font-size: 30px;
+}
+
+#eewBar_depth {
+    position: absolute;
+    top: 61px;
+    right: 89px;
+    font-size: 30px;
+}
+
+#announcement {
+    line-height: 30px;
+    font-size: 20px;
+    position: absolute;
+    top: -40px;
+    width: calc(100% - 100px);
+    height: 30px;
+    left: 44px;
+    background-color: #fff;
+    z-index: 999999999;
+    border-radius: 10px;
+    text-align: center;
+}
+
+#settingsBu {
+    position: absolute;
+    bottom: 29px;
+    left: 130px;
+    z-index: 500;
+    height: 30px;
+    width: 85px;
+    background-color: rgba(0, 0, 125, 0.8);
+    border: 2px solid #fff;
+    border-radius: 5px;
+    margin: 0 auto;
+    text-align: center;
+    color: white;
+    cursor: hand;
+    line-height: 30px;
+}
+
+#fullScreenBu {
+    position: absolute;
+    bottom: 29px;
+    left: 230px;
+    z-index: 500;
+    height: 30px;
+    width: 85px;
+    background-color: rgba(0, 0, 125, 0.8);
+    border: 2px solid #fff;
+    border-radius: 5px;
+    margin: 0 auto;
+    text-align: center;
+    color: white;
+    cursor: hand;
+    line-height: 30px;
+}
+
+#backToEpicenterBu {
+    position: absolute;
+    bottom: 29px;
+    left: 330px;
+    z-index: 500;
+    height: 30px;
+    width: 85px;
+    background-color: rgba(0, 0, 125, 0.8);
+    border: 2px solid #fff;
+    border-radius: 5px;
+    margin: 0 auto;
+    text-align: center;
+    color: white;
+    cursor: hand;
+    line-height: 30px;
+}
+
+#testEewBu {
+    position: absolute;
+    bottom: 29px;
+    left: 30px;
+    z-index: 500;
+    height: 30px;
+    width: 85px;
+    background-color: #e67e22;
+    border: 2px solid #fff;
+    border-radius: 5px;
+    margin: 0 auto;
+    text-align: center;
+    color: white;
+    cursor: pointer;
+    line-height: 30px;
+    font-weight: bold;
+}
+
+#settingsBackground {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    width: 0%;
+    height: 0%;
+    background-color: #000;
+    display: none;
+    z-index: 99999990;
+}
+
+#settingsWindow {
+    position: absolute;
+    background-color: #292929;
+    right: -300px;
+    top: 20px;
+    height: calc(100% - 40px);
+    width: 0px;
+    z-index: 99999991;
+    border-top-left-radius: 10px;
+    border-bottom-left-radius: 10px;
+    box-shadow: 0px 0px 10px 6px rgba(0, 0, 0, 0.1);
+}
+
+#settingsTitle {
+    position: relative;
+    left: 10px;
+    top: 10px;
+    font-size: 30px;
+    color: white;
+}
+
+#settings_LocalTitle {
+    position: relative;
+    top: 15px;
+    left: 10px;
+    color: white;
+}
+
+#settings_LocalInputName {
+    width: 100px;
+}
+
+#settings_LocalLine {
+    position: relative;
+    top: 15px;
+    left: 10px;
+    color: white;
+}
+
+#settings_LocalInputLat {
+    width: 60px;
+}
+
+#settings_LocalInputLon {
+    width: 60px;
+}
+
+#settingsCloseBu {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    height: 30px;
+    width: 85px;
+    background-color: rgba(0, 0, 125, 0.8);
+    border: 2px solid #fff;
+    border-radius: 5px;
+    margin: 0 auto;
+    text-align: center;
+    color: white;
+    cursor: hand;
+    line-height: 30px;
+}
+
+#settingsCancelBu {
+    position: absolute;
+    bottom: 10px;
+    right: 105px;
+    height: 30px;
+    width: 85px;
+    background-color: rgba(123, 123, 123, 0.8);
+    border: 2px solid #fff;
+    border-radius: 5px;
+    margin: 0 auto;
+    text-align: center;
+    color: white;
+    cursor: hand;
+    line-height: 30px;
+}
+
+/* 调整设置项布局，避免重叠 */
+#boundCb,
+#bbshindoCb {
+    position: static;
+    display: block;
+    margin: 15px 0 0 10px;
+    color: white;
+}
+
+/* 音效设置区域样式优化，避免重叠 */
+#soundSettings {
+    margin: 20px 10px 0 10px;
+    color: white;
+    font-size: 15px;
+    display: block;
+}
+
+#soundSettings > div {
+    margin-bottom: 6px;
+}
+
+#bbshindo {
+    position: absolute;
+    bottom: -51px;
+    right: 10px;
+    z-index: 999999;
+}
+
+#aboutInfo {
+    position: absolute;
+    bottom: 50px;
+    width: 300px;
+    text-align: center;
+    color: white;
+    text-decoration: none;
+}
+
+a {
+    text-decoration: none;
+    color: white;
+}
+
+a:visited {
+    color: white;
+}
+
+.bbshindoMapPoint {
+    position: absolute;
+    height: 0px;
+    width: 0px;
+    background-color: #2e2e2e;
+    opacity: 0.8;
+    cursor: hand;
+    z-index: 9991;
+}
+
+.localIcon {
+    position: absolute;
+    height: 15px;
+    width: 15px;
+    background-image: url('https://app.projectbs.cn/ceiv/local.png');
+    opacity: 0.8;
+    cursor: hand;
+    z-index: 9990;
+}
+
+#currentTime {
+    position: absolute;
+    bottom: 107px;
+    right: 10px;
+    color: red;
+    font-size: 20px;
+    z-index: 999999;
+    font-weight: bold;
+    font-family: OPPOSans-B, sans-serif;
+}
+
+#loading_Background {
+    position: absolute;
+    width: 100%;
+    min-height: 100vh;
+    max-height: 100vh;
+    background-color: #222;
+    z-index: 9999999999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#loading_Text2 {
+    position: absolute;
+    right: 5px;
+    bottom: 10px;
+    color: #fff;
+    text-align: right;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: .5;
+}
+
+/* 修改主事件容器，让灰色框包住震度图标 */
+#mainBar {
+    position: relative;
+    top: 0px;
+    left: 0px;
+    height: 90px;
+    width: 350px;
+    color: white;
+    display: flex;
+    flex-direction: row;
+    background-color: #333;
+    border-radius: 10px;
+    padding: 0;
+}
+
+/* 主事件震度图标作为内部元素 */
+#mainMaxInt {
+    width: 90px;
+    height: 90px;
+    line-height: 90px;
+    font-size: 65px;
+    font-family: OPPOSans-H, OPPOSans-B, 'Arial Black', Arial, sans-serif;
+    font-weight: bold;
+    text-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+    border: 3px solid white;
+    box-sizing: border-box;
+    border-radius: 10px 0 0 10px;
+    margin-right: 0;
+    letter-spacing: 1px;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 主事件左侧信息框调整 */
+#mainLeft {
+    height: 90px;
+    width: 256px;
+    background-color: transparent;
+    border-radius: 0 10px 10px 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    flex: 1;
+    position: relative;
+    padding-left: 8px;
+}
+
+#mainTime {
+    position: relative;
+    top: 4px;
+    left: 0;
+    font-size: 14px;
+}
+
+#mainEpicenter {
+    position: relative;
+    top: 8px;
+    left: 0;
+    font-size: 16px;
+    line-height: 18px;
+    width: 240px;
+}
+
+/* 新增：底部信息行，包裹深度和震级 */
+.mainBottomRow {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-end;
+    width: 100%;
+    margin-top: auto;
+    padding: 0 6px 4px 0;
+    box-sizing: border-box;
+    position: relative;
+}
+
+#mainDepth {
+    position: relative;
+    left: 0;
+    bottom: 0;
+    font-size: 22px;
+    margin: 0;
+}
+
+#mainMagnitude {
+    position: relative;
+    right: 0;
+    bottom: 0;
+    font-size: 22px;
+    margin: 0;
+}
+
+/* 子事件容器同样修改，让灰色框包住震度图标 */
+[id^="subBar"] {
+    position: relative;
+    left: 0px;
+    height: 55px;
+    width: 350px;
+    color: white;
+    margin-top: 4px;
+    display: flex;
+    flex-direction: row;
+    background-color: #333;
+    border-radius: 10px;
+    padding: 0;
+}
+
+/* 子事件震度图标作为内部元素 */
+[id^="subMaxInt"] {
+    width: 55px;
+    height: 55px;
+    line-height: 55px;
+    font-size: 32px;
+    font-family: OPPOSans-H, OPPOSans-B, 'Arial Black', Arial, sans-serif;
+    font-weight: bold;
+    text-align: center;
+    text-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+    border: 2px solid white;
+    box-sizing: border-box;
+    border-radius: 10px 0 0 10px;
+    margin-right: 0;
+    letter-spacing: 1px;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 子事件左侧信息框调整 */
+[id^="subLeft"] {
+    height: 55px;
+    width: 291px;
+    background-color: transparent;
+    border-radius: 0 10px 10px 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    flex: 1;
+    position: relative;
+    padding-left: 8px;
+}
+
+[id^="subTime"] {
+    position: relative;
+    top: 4px;
+    left: 0;
+    font-size: 13px;
+}
+
+[id^="subEpicenter"] {
+    position: relative;
+    top: 8px;
+    left: 0;
+    font-size: 16px;
+    line-height: 17px;
+    width: 200px;
+}
+
+[id^="subMagnitude"] {
+    position: absolute;
+    right: 8px;
+    font-size: 19px;
+    bottom: 18px;
+    top: auto;
+}
+
+#mainAgency {
+    font-size: 12px;
+    color: #A2CBDB;
+    position: absolute;
+    right: 8px; /* 放在右侧 */
+    top: 4px; /* 放在顶部 */
+    width: auto; /* 自动宽度 */
+    text-align: right; /* 右对齐 */
+    left: auto; /* 取消左侧定位 */
+    bottom: auto; /* 取消底部定位 */
+}
+
+[id^="subAgency"] {
+    font-size: 11px;
+    color: #A2CBDB;
+    position: absolute;
+    right: 8px; /* 放在右侧 */
+    bottom: 4px; /* 放在底部 */
+    width: auto; /* 自动宽度 */
+    text-align: right; /* 右对齐 */
+    left: auto; /* 取消左侧定位 */
+}
+
+.station-dot {
+    position: absolute;
+    z-index: 9991;
+    pointer-events: auto;
+    border: none !important;
+}
+
+/* 新增：日本Yahoo震度点样式（实际由JS控制颜色） */
+.jp-shindo-dot {
+    border: none !important;
+    border-radius: 50%;
+    width: 8px;
+    height: 8px;
+    box-shadow: 0 0 2px #000;
+    opacity: 0.95;
+}
+
+/* 震度图标样式，去除白色方框 */
+.station-shindo-icon,
+.leaflet-div-icon.station-shindo-icon {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    pointer-events: none;
+    padding: 0 !important;
+    width: 22px !important;
+    height: 22px !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-width: none !important;
+    max-height: none !important;
+}
+.station-shindo-icon img {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+    object-fit: contain;
+}
+
+/* 可选：S-net marker 样式（如需区分） */
+/*
+.snet-marker {
+    border: 2px dashed #00eaff;
+}
+*/
+
+#eewBar {
+    opacity: 0;
+    z-index: 999998;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+#eewBar_shindo span {
+    display: block;
+    line-height: 1;
+    color: white;
+    text-align: center;
+}
+
+/* 新增：K-NET 时间胶囊组件样式 */
+#knetTimeCapsule {
+    position: absolute;
+    top: 18px;
+    right: 368px; /* 350px(列表宽度) + 18px间距 */
+    z-index: 1000001;
+    background: rgba(30, 30, 30, 0.85);
+    color: #fff;
+    font-size: 18px;
+    padding: 6px 22px;
+    border-radius: 999px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    font-family: OPPOSans-B, sans-serif;
+    letter-spacing: 1px;
+    pointer-events: none;
+    user-select: none;
+    min-width: 120px;
+    text-align: center;
+    transition: color 0.2s;
+}
+
+/* 新增：quakePane z-index 低于 markerPane，保证震波在下方 */
+.leaflet-pane.leaflet-quake-pane,
+.leaflet-pane#quakePane {
+    z-index: 350 !important;
+}
+
+
+.jma-station-shindo-icon.leaflet-div-icon {
+    background: transparent !important;
+    border: none !important;
+}
+
+.jma-station-shindo-icon.leaflet-div-icon img {
+    background: transparent !important;
+    border: none !important;
+}
+
+.intensity-contour-line {
+    pointer-events: auto;
+    transition: all 0.3s ease;
+}
+
+.intensity-contour-line:hover {
+    stroke-width: 4px;
+    opacity: 1;
+}
+
+.intensity-contour-legend {
+    background: white;
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 0 0 15px rgba(0,0,0,0.2);
+    max-width: 200px;
+}
+
+.intensity-contour-legend h4 {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    color: #333;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 4px;
+}
+
+.intensity-contour-legend .legend-item {
+    display: flex;
+    align-items: center;
+    margin: 4px 0;
+    font-size: 12px;
+}
+
+.intensity-contour-legend .legend-item i {
+    width: 18px;
+    height: 18px;
+    margin-right: 8px;
+    border: 1px solid #999;
+    border-radius: 3px;
+    display: inline-block;
+}
+
+.intensity-contour-legend .legend-item small {
+    margin-left: auto;
+    color: #666;
+    font-size: 10px;
+}
