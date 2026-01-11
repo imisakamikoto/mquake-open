@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mmonitor IPad</title>
+    <link rel="shortcut icon" href="./favicon.ico">
+    <link rel="stylesheet" href="./css/index.css">
+    <link rel="stylesheet" href="leaflet/leaflet.css" />
+    <script src="leaflet/leaflet.js"></script>
+    <style>
+    #map {
+        height: 100vh;
+        min-height: 400px;
+    }
+    
+    /* 主事件机构名称样式 */
+    #mainAgency {
+        font-size: 14px;
+        color: #aaa;
+        position: absolute;
+        left: 4px;
+        bottom: 45px;
+    }
+    
+    /* 子事件机构名称样式 */
+    [id^="subAgency"] {
+        font-size: 14px;
+        color: #888;
+        position: absolute;
+        left: 4px;
+        bottom: 4px;
+        width: calc(100% - 8px);
+    }
+    
+    /* 调整子事件震级位置 */
+    [id^="subMagnitude"] {
+        bottom: 20px;
+        top: auto;
+    }
+    
+    /* 确保容器有相对定位 */
+    #mainLeft, [id^="subLeft"] {
+        position: relative;
+    }
+    </style>
+    <script src="jquery-3.7.1.min.js" type="text/javascript" charset="utf-8"></script>
+    <script src="chart.js"></script>
+    <script type="module" src="ionicons.esm.js"></script>
+    <script nomodule src="ionicons.js"></script>
+    <script src="moment.min.js"></script>
+    <!-- 加载带数据的 moment-timezone，解决 Asia/Tokyo 报错 -->
+    <script src="moment-timezone-with-data.min.js"></script>
+    <!-- 依赖 ./Resource/Snet_Points.json 和 ./Resource/Snet_ColorTable.json 用于 S-net 海底地震测站显示 -->
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+</head>
+
+<body>
+    <div id="loading_Background">
+        <div style="margin-left: .5rem; color: #fff; font-size: 3rem;">载入中</div>
+        <div id="loading_Text2"></div>
+    </div>
+    <!-- 新增：K-NET 时间胶囊组件 -->
+    <div id="knetTimeCapsule">--时--分--秒更新</div>
+    <div id="map"></div>
+    <div id="list">
+<!-- 修改主地震事件结构 -->
+        <div id="mainBar">
+            <div id="mainMaxInt">-</div>
+            <div id="mainLeft">
+                <div id="mainTime">01/01 00:00</div>
+                <div id="mainEpicenter">载入中</div>
+                <!-- 新增机构名称 -->
+                <div id="mainAgency" class="agency-name">机构</div>
+                <div class="mainBottomRow">
+                    <div id="mainDepth">0<font size="3">&nbsp;km</font></div>
+                    <div id="mainMagnitude"><font size="4">M</font>0.0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 修改子地震事件结构 -->
+        <div id="subBar2">
+            <div id="subMaxInt2">-</div>
+            <div id="subLeft2">
+                <div id="subTime2">01/01 00:00</div>
+                <div id="subEpicenter2">载入中</div>
+                <!-- 新增机构名称 -->
+                <div id="subAgency2" class="agency-name">机构</div>
+                <div id="subMagnitude2">M0.0</div>
+            </div>
+        </div>
+
+        <div id="subBar3">
+            <div id="subMaxInt3">-</div>
+            <div id="subLeft3">
+                <div id="subTime3">01/01 00:00</div>
+                <div id="subEpicenter3">载入中</div>
+                <!-- 新增机构名称 -->
+                <div id="subAgency3" class="agency-name">机构</div>
+                <div id="subMagnitude3">M0.0</div>
+            </div>
+</div>
+    </div>
+    <div id="status">
+        <span style="position: relative; top: 3px;">
+            <ion-icon name="information-circle"></ion-icon>
+        </span>暂无生效中的地震即时警告
+    </div>
+    <div id="eewBar">
+        <div id="eewBar_shindo"></div>
+        <!-- 地名过长时自动换行，避免与时间重叠，样式已在 index.css 优化 -->
+        <div id="eewBar_epicenter"></div>
+        <div id="eewBar_time"></div>
+        <div id="eewBar_magnitude"></div>
+        <div id="eewBar_depth"><span style="font-size:15px;"></span></div>
+    </div>
+    <!-- 移除倒计时框 -->
+    <!--
+    <div id="countDown">
+        <div id="countDown_Border">
+            <div id="countDown_LocalName">
+                <span style="position: relative; top: 3px;">
+                    <ion-icon name="navigate-circle-outline"></ion-icon>
+                </span>
+            </div>
+            <div id="countDown_Number"></div>
+            <div id="countDown_SText">秒</div>
+        </div>
+        <div id="countDown_Text">震感获取中...<br>地震横波将抵达</div>
+    </div>
+    -->
+    <center>
+        <div id="announcement" style="z-index:9999999999;"></div>
+    </center>
+    <div id="settingsBu" onclick="settings()">设置</div>
+    <div id="fullScreenBu" onclick="fullScreenF()">全屏显示</div>
+    <div id="settingsBackground" onclick="settingsCancel()"></div>
+    <div id="settingsWindow">
+        <div id="settingsTitle">设置</div>
+        <div id="settings_LocalTitle">所在地&nbsp;<input type="text" id="settings_LocalInputName">&nbsp;<button
+                onclick="geoIP()">自动获取</button></div>
+        <div id="settings_LocalLine">纬度&nbsp;<input type="text" id="settings_LocalInputLat">&nbsp;经度&nbsp;<input
+                type="text" id="settings_LocalInputLon"></div>
+        <div id="boundCb">&nbsp;<input type="checkbox" id="zdsf" checked="true" /><label for="">&nbsp;自动缩放</label></div>
+        <div id="bbshindoCb">&nbsp;<input type="checkbox" id="bbzd" checked="true" onclick="bbzdCbCheck()" /><label
+                for="">&nbsp;重庆北碚实时震度</label>&nbsp;&nbsp;地图显示&nbsp;<select id="bbzdMap">
+                <option>PGA</option>
+                <option>震度</option>
+            </select></div>
+        <!-- 新增：S-net显示设置 -->
+        <div style="margin:10px 0;">
+            <label>
+                <input type="checkbox" id="settings_ShowSnetLayer">
+                显示S-net海底测站
+            </label>
+        </div>
+        <!-- 新增：音效设置 -->
+        <div id="soundSettings" style="margin-top: 20px; color: white; font-size: 15px;">
+            <div style="margin-bottom: 4px;"><b>音效设置</b></div>
+            <div>
+                注意音效URL 
+                <label for="settings_SoundNoticeFile" style="display:inline-block; background:#444; color:#fff; border-radius:3px; padding:2px 8px; cursor:pointer; margin-right:4px;">选择文件</label>
+                <input type="file" id="settings_SoundNoticeFile" accept="audio/*" style="display:none;">
+                <input type="text" id="settings_SoundNoticeUrl" style="width:160px;" placeholder="mp3/wav/ogg链接">
+            </div>
+            <div>
+                注意烈度阈值 <input type="number" id="settings_SoundNoticeThreshold" min="1" max="12" style="width:40px;">
+            </div>
+            <div>
+                警报音效URL 
+                <label for="settings_SoundAlertFile" style="display:inline-block; background:#444; color:#fff; border-radius:3px; padding:2px 8px; cursor:pointer; margin-right:4px;">选择文件</label>
+                <input type="file" id="settings_SoundAlertFile" accept="audio/*" style="display:none;">
+                <input type="text" id="settings_SoundAlertUrl" style="width:160px;" placeholder="mp3/wav/ogg链接">
+            </div>
+            <div>
+                警报烈度阈值 <input type="number" id="settings_SoundAlertThreshold" min="1" max="12" style="width:40px;">
+            </div>
+            <div style="font-size:12px;color:#aaa;">
+                每个事件只会触发一次音效，警报优先于注意<br>
+                <b>本地音效文件仅本次会话有效，刷新页面后需重新选择！</b>
+            </div>
+            <div style="margin-top:8px;">
+                <button id="testSoundNoticeBtn" type="button">测试注意音效</button>
+                <button id="testSoundAlertBtn" type="button">测试警报音效</button>
+            </div>
+        </div>
+        <!-- 新增：预警时仅显示震度图标设置 -->
+        <div style="margin-top: 12px; color: white; font-size: 15px;">
+            <input type="checkbox" id="settings_HideStationOnEew" />
+            <label for="settings_HideStationOnEew">预警时仅显示震度图标</label>
+        </div>
+        <!-- 新增：显示模式切换 -->
+        <div style="margin:10px 0;">
+            <label>
+                显示模式
+                <select id="settings_ShindoMode">
+                    <option value="intensity">烈度</option>
+                    <option value="jma">JMA震度</option>
+                </select>
+            </label>
+        </div>
+        <div id="aboutInfo">
+            <center><img src='./img/pbs-white.png'
+                    style="cursor:pointer; height:35px; width:200px;"
+                    onclick="javascript:location.href='https://projectbs.cn'"></center><br />
+            <div id="settingsVertion"></div>
+        </div>
+        <div id="settingsCloseBu" onclick="settingsSaveClose()">保存并关闭</div>
+        <div id="settingsCancelBu" onclick="settingsCancel()">取消</div>
+    </div>
+    <script>
+        console.log("Chinese Earthquake List 2.0.0\nPowered By Yorushi & Yowot");
+
+        function calcMaxInt(calcMagnitude, calcDepth) {
+            if (isNaN(calcMagnitude) || isNaN(calcDepth) || calcMagnitude <= 0 || calcDepth <= 0) {
+                return 0; // 返回默认烈度值
+            }
+
+            let numa = 1.65 * calcMagnitude;
+            let numb = calcDepth < 10 ? 1.21 * Math.log10(10) : 1.21 * Math.log10(calcDepth);
+            let maxInt = Math.round(numa / numb);
+
+            // 限制最大烈度范围在 0 到 12
+            maxInt = Math.min(Math.max(maxInt, 0), 12);
+
+            return maxInt;
+        }
+
+// 在动态生成子地震事件列表的部分添加机构名称
+        for (let ii = 4; ii <= 50; ii++) {
+            $("#subBar" + (ii - 1)).after(`
+                <div id="subBar${ii}">
+                    <div id="subMaxInt${ii}">-</div>
+                    <div id="subLeft${ii}">
+                        <div id="subTime${ii}">01/01 00:00</div>
+                        <div id="subEpicenter${ii}">载入中</div>
+                        <!-- 新增机构名称 -->
+                        <div id="subAgency${ii}" class="agency-name">机构</div>
+                        <div id="subMagnitude${ii}">M0.0</div>
+                    </div>
+                </div>
+            `);
+        }
+
+        var cencLat, cencLon; // 定义震中经纬度变量
+
+        function truncateText(text, maxLength) {
+            if (typeof text !== "string") {
+                console.error("truncateText: 输入不是字符串", text);
+                return "";
+            }
+            return text.length > maxLength ? text.substring(0, maxLength) + "..." : text;
+        }
+
+        function getData() {
+            const url = "http://192.168.1.223:2586/getapi"
+            $.getJSON(url, function (data) {
+                if (data && Array.isArray(data) && data.length > 0) {
+                    // 更新主地震事件
+                    const mainEvent = data[0];
+                    const mainOriginTime = new Date(mainEvent.OriginTime).toLocaleString();
+                    $("#mainTime").text(mainOriginTime || "暂无数据");
+                    $("#mainEpicenter").text(truncateText(mainEvent.HypoCenter || "暂无数据", 20));
+                    $("#mainDepth").html((mainEvent.Depth || 0) + '<font size="3">&nbsp;km</font>');
+                    $("#mainMagnitude").html('<font size="4">M</font>' + (mainEvent.Magunitude || 0.0));
+                    // 新增：更新机构名称
+                    $("#mainAgency").text(mainEvent.Source || "未知机构");
+                    
+                    // 根据模式显示烈度
+                    const mainShindo = window.getEventShindoDisplay(mainEvent);
+                    $("#mainMaxInt").text(mainShindo.text);
+                    $("#mainMaxInt").css("background-color", mainShindo.color);
+
+                    // 更新子地震事件
+                    for (let i = 1; i < data.length && i <= 50; i++) {
+                        const subEvent = data[i];
+                        const subOriginTime = new Date(subEvent.OriginTime).toLocaleString();
+                        $("#subTime" + (i + 1)).text(subOriginTime || "暂无数据");
+                        $("#subEpicenter" + (i + 1)).text(truncateText(subEvent.HypoCenter || "暂无数据", 16));
+                        $("#subMagnitude" + (i + 1)).text("M" + (subEvent.Magunitude || 0.0));
+                        // 新增：更新机构名称
+                        $("#subAgency" + (i + 1)).text(subEvent.Source || "未知机构");
+                        
+                        // 根据模式显示烈度
+                        const subShindo = window.getEventShindoDisplay(subEvent);
+                        $("#subMaxInt" + (i + 1)).text(subShindo.text);
+                        $("#subMaxInt" + (i + 1)).css("background-color", subShindo.color);
+                    }
+
+                } else {
+                    console.error("接口返回的数据为空或格式不正确");
+                    resetEarthquakeList();
+                }
+            }).fail(function (jqXHR, textStatus, errorThrown) {
+                console.error("请求失败：", textStatus, errorThrown);
+                resetEarthquakeList();
+            });
+        }
+
+        function resetEarthquakeList() {
+            // 重置主地震事件
+            $("#mainTime").text("暂无数据");
+            $("#mainEpicenter").text("暂无数据");
+            $("#mainDepth").html("0<font size='3'>&nbsp;km</font>");
+            $("#mainMagnitude").html("<font size='4'>M</font>0.0");
+            $("#mainAgency").text("机构"); // 重置机构名称
+            $("#mainMaxInt").text("-");
+            $("#mainMaxInt").css("background-color", "#444444");
+
+            // 重置子地震事件
+            for (let i = 2; i <= 50; i++) {
+                if ($(`#subBar${i}`).length) {
+                    $("#subTime" + i).text("暂无数据");
+                    $("#subEpicenter" + i).text("暂无数据");
+                    $("#subMagnitude" + i).text("M0.0");
+                    $("#subAgency" + i).text("机构"); // 重置机构名称
+                    $("#subMaxInt" + i).text("-");
+                    $("#subMaxInt" + i).css("background-color", "#444444");
+                }
+            }
+        }
+        // 不要在 index.html 里操作地图覆盖物
+        // function displayAllIclEpicenters/isTest/...
+        // function displayIclEpicenter/isTest/...
+        // 这些都交给 /js/index.js 处理
+
+        // 新增：测试音效按钮事件
+        $(function () {
+            $("#testSoundNoticeBtn").on("click", function () {
+                // 只用本地文件
+                if (window.soundNoticeFile) {
+                    const url = URL.createObjectURL(window.soundNoticeFile);
+                    const audio = new Audio(url);
+                    audio.currentTime = 0;
+                    audio.play().catch((e)=>{
+                        alert("无法播放音效，请检查文件格式或浏览器设置。\n" + (e && e.message ? e.message : ""));
+                    });
+                    setTimeout(()=>URL.revokeObjectURL(url), 10000);
+                } else {
+                    alert("请先选择注意音效文件");
+                }
+            });
+            $("#testSoundAlertBtn").on("click", function () {
+                if (window.soundAlertFile) {
+                    const url = URL.createObjectURL(window.soundAlertFile);
+                    const audio = new Audio(url);
+                    audio.currentTime = 0;
+                    audio.play().catch((e)=>{
+                        alert("无法播放音效，请检查文件格式或浏览器设置。\n" + (e && e.message ? e.message : ""));
+                    });
+                    setTimeout(()=>URL.revokeObjectURL(url), 10000);
+                } else {
+                    alert("请先选择警报音效文件");
+                }
+            });
+
+            // 音效文件选择处理（增加格式校验）
+            $("#settings_SoundNoticeFile").on("change", function (e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const ext = file.name.split('.').pop().toLowerCase();
+                    if (!["mp3", "wav", "ogg"].includes(ext)) {
+                        alert("请选择mp3、wav或ogg格式的音频文件！");
+                        $(this).val('');
+                        return;
+                    }
+                    window.soundNoticeFile = file;
+                    $("#settings_SoundNoticeUrl").val(file.name);
+                }
+            });
+            $("#settings_SoundAlertFile").on("change", function (e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const ext = file.name.split('.').pop().toLowerCase();
+                    if (!["mp3", "wav", "ogg"].includes(ext)) {
+                        alert("请选择mp3、wav或ogg格式的音频文件！");
+                        $(this).val('');
+                        return;
+                    }
+                    window.soundAlertFile = file;
+                    $("#settings_SoundAlertUrl").val(file.name);
+                }
+            });
+
+            // 新增：初始化显示模式下拉框
+            const mode = window.getCookie("shindoMode") || "intensity";
+            $("#settings_ShindoMode").val(mode);
+        });
+
+        // 保存设置时处理显示模式
+        function settingsSaveClose() {
+            // ...existing code...
+            // 新增：保存显示模式
+            const shindoMode = $("#settings_ShindoMode").val();
+            window.setCookie("shindoMode", shindoMode);
+            // ...existing code...
+        }
+
+        // 初始化运行
+        getData();
+        setInterval(getData, 1000);
+    </script>
+    <!-- 注意：音效文件（本地blob:）刷新后需重新选择，否则失效 -->
+    <script src="./js/index.js" type="text/javascript" charset="utf-8"></script>
+    <!-- S-net站点标点校正工具入口请在控制台输入 window.openSnetPointEditor() 调用 -->
+</body>
+
+</html>
